@@ -45,8 +45,6 @@ private:
 
     til::shared_mutex<std::vector<std::shared_ptr<WindowThread>>> _oldThreads;
 
-    std::optional<til::throttled_func_trailing<>> _getWindowLayoutThrottler;
-
     winrt::event_token _WindowCreatedToken;
     winrt::event_token _WindowClosedToken;
 
@@ -69,7 +67,6 @@ private:
     winrt::fire_and_forget _windowRequestUpdateSettings();
 
     winrt::Windows::Foundation::IAsyncAction _saveWindowLayouts();
-    winrt::fire_and_forget _saveWindowLayoutsRepeat();
 
     void _createMessageWindow();
 

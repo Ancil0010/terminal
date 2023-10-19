@@ -1678,6 +1678,24 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             _connectionOutputEventRevoker.revoke();
             _connectionStateChangedRevoker.revoke();
             _connection.Close();
+
+            auto lock = _terminal->LockForReading();
+            const auto vt = _terminal->GetTextBuffer().DumpAsVT();
+            lock.release();
+
+            wchar_t path[MAX_PATH];
+            ExpandEnvironmentStringsW(L"%USERPROFILE%\\Downloads\\wt.txt", &path[0], MAX_PATH);
+
+            const auto h = CreateFileW(
+                &path[0],
+                GENERIC_WRITE,
+                FILE_SHARE_READ | FILE_SHARE_DELETE,
+                nullptr,
+                CREATE_ALWAYS,
+                FILE_ATTRIBUTE_NORMAL,
+                nullptr);
+            WriteFile(h, vt.data(), gsl::narrow<DWORD>(vt.size() * sizeof(wchar_t)), nullptr, nullptr);
+            CloseHandle(h);
         }
     }
 

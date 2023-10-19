@@ -255,6 +255,7 @@ public:
                               const int fontHeightPoints,
                               const std::wstring_view fontFaceName,
                               const COLORREF backgroundColor);
+    std::wstring DumpAsVT();
 
     struct PositionInformation
     {

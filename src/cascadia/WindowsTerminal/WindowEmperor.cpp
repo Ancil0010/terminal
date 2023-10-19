@@ -364,22 +364,12 @@ void WindowEmperor::_becomeMonarch()
     // If the monarch receives a QuitAll event it will signal this event to be
     // ran before each peasant is closed.
     _revokers.QuitAllRequested = _manager.QuitAllRequested(winrt::auto_revoke, { this, &WindowEmperor::_quitAllRequested });
-
-    // The monarch should be monitoring if it should save the window layout.
-    // We want at least some delay to prevent the first save from overwriting
-    _getWindowLayoutThrottler.emplace(std::move(std::chrono::seconds(10)), std::move([this]() { _saveWindowLayoutsRepeat(); }));
-    _getWindowLayoutThrottler.value()();
 }
 
 // sender and args are always nullptr
 void WindowEmperor::_numberOfWindowsChanged(const winrt::Windows::Foundation::IInspectable&,
                                             const winrt::Windows::Foundation::IInspectable&)
 {
-    if (_getWindowLayoutThrottler)
-    {
-        _getWindowLayoutThrottler.value()();
-    }
-
     // If we closed out the quake window, and don't otherwise need the tray
     // icon, let's get rid of it.
     _checkWindowsForNotificationIcon();
@@ -392,13 +382,6 @@ void WindowEmperor::_quitAllRequested(const winrt::Windows::Foundation::IInspect
                                       const winrt::Microsoft::Terminal::Remoting::QuitAllRequestedArgs& args)
 {
     _quitting = true;
-
-    // Make sure that the current timer is destroyed so that it doesn't attempt
-    // to run while we are in the middle of quitting.
-    if (_getWindowLayoutThrottler.has_value())
-    {
-        _getWindowLayoutThrottler.reset();
-    }
 
     // Tell the monarch to wait for the window layouts to save before
     // everyone quits.
@@ -446,30 +429,6 @@ winrt::Windows::Foundation::IAsyncAction WindowEmperor::_saveWindowLayouts()
     co_return;
 }
 
-winrt::fire_and_forget WindowEmperor::_saveWindowLayoutsRepeat()
-{
-    // Make sure we run on a background thread to not block anything.
-    co_await winrt::resume_background();
-
-    co_await _saveWindowLayouts();
-
-    // Don't need to save too frequently.
-    co_await winrt::resume_after(30s);
-
-    // As long as we are supposed to keep saving, request another save.
-    // This will be delayed by the throttler so that at most one save happens
-    // per 10 seconds, if a save is requested by another source simultaneously.
-    if (_getWindowLayoutThrottler.has_value())
-    {
-        TraceLoggingWrite(g_hWindowsTerminalProvider,
-                          "AppHost_requestGetLayout",
-                          TraceLoggingDescription("Logged when triggering a throttled write of the window state"),
-                          TraceLoggingLevel(WINEVENT_LEVEL_VERBOSE),
-                          TraceLoggingKeyword(TIL_KEYWORD_TRACE));
-
-        _getWindowLayoutThrottler.value()();
-    }
-}
 #pragma endregion
 
 #pragma region WindowProc
